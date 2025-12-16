@@ -1,1 +1,98 @@
+%%This is a script for computing the transfer function of PCT107 Multivariable Plant
+clc
+close all
+clear all
 
+%%Load data
+load('pct107-heat-transfer-equi-data.mat')
+
+%%Rename parameters to data
+t = out.tout;
+hot_water_pump = out.data.signals.values(:,1);
+shell_inlet = out.data.signals.values(:,2);
+tube_outlet = out.data.signals.values(:,3);
+
+%%Plotting
+figure
+plot(t,hot_water_pump,'LineWidth',2)
+ylim([-0.1 1.1])
+
+figure
+plot(t,shell_inlet,'r-','LineWidth',2); hold on
+plot(t,tube_outlet,'b-','LineWidth',2); hold off
+
+figure
+plot(t,tube_outlet,'b-','LineWidth',2);
+
+%%Find mean value of the temperature between  to  and between  to . The value between  to  is temperature initial value, and between  to  is the steady-state value.
+idx1 = find(t == 25);
+avg_tube_outlet_initial = tube_outlet(1:idx1);
+mean_tube_outlet_initial = mean(avg_tube_outlet_initial,'all');
+avg_tube_outlet_initial = ones(size(avg_tube_outlet_initial)).*mean_tube_outlet_initial;
+
+idx2 = find(t == 600);
+avg_cold_stream_ss = tube_outlet(idx2:end);
+mean_tube_outlet_ss = mean(avg_cold_stream_ss,'all');
+avg_cold_stream_ss = ones(size(avg_cold_stream_ss)).*mean_tube_outlet_ss;
+
+%Find y = mx+c
+m = (1-0)/(mean_tube_outlet_ss-mean_tube_outlet_initial);
+c = -m*mean_tube_outlet_initial+0;
+tube_outlet_norm = m.*tube_outlet+c;
+
+plot(t,tube_outlet_norm,'k-','LineWidth',2);
+ylabel('amplitude','FontSize',12), xlabel('time (s)','FontSize',12)
+ylim([-0.5,2])
+set(gca,'fontsize',10)
+
+%%FILTERING
+no_obs = numel(t); % number of observation
+
+% t = 1:0.5:no_obs;
+tnew = linspace(0,max(t),no_obs)';
+
+
+% tube_outlet
+% mea_val = out.data.signals.values(:,3);
+mea_val_norm = tube_outlet_norm;
+% tube_outlet_norm
+mea_val_norm = mea_val_norm';
+
+% figure
+% plot(tnew,mea_val,'-')
+
+% initialisation
+
+xhat(:,1) = 10;
+variance_initial_estimate_err = 100;
+p = variance_initial_estimate_err^2;
+process_noise = 0.00001;
+
+% prediction
+
+% x_predict = xhat;
+xhat(:,1) = xhat(:,1);% <- x_predict
+% p_predict = p + process_noise
+p(:,1) = p + process_noise;
+
+for i = 1:no_obs
+
+    z(:,i) = mea_val_norm(:,i);%z(:,2) = mea_val(:,2)
+    r(:,i) = 0.01;
+    k(:,i) = (p(:,i))/(p(:,i) + r(:,i));%k(:,2) = (p(:,2))/(p(:,2) + r(:,1))
+    xhat(:,i) = xhat(:,i) + k(:,i)*(z(:,i)-xhat(:,i));%xhat(:,2) = xhat(:,2) + k(:,2)*(z(2)-xhat(:,2))
+    p(:,i) = (1-k(:,i))*p(:,i);%p(:,2) = (1-k(:,2))*p(:,2)
+    xhat(:,i+1) = xhat(:,i);%xhat(:,3) = xhat(:,2)
+    p(:,i+1) = p(:,i) + process_noise;%p(:,3) = p(:,2) + process_noise
+
+end
+
+% tube_outlet_norm = mea_val;
+tube_outlet_norm = mea_val_norm;
+tube_outlet_est_norm = xhat(:,2:end);
+
+plot(tnew,tube_outlet_norm,'k-','LineWidth',2);
+ylabel('amplitude','FontSize',12), xlabel('time (s)','FontSize',12)
+
+plot(tnew,tube_outlet_est_norm,'g-','LineWidth',2); hold on
+ylabel('amplitude','FontSize',12), xlabel('time (s)','FontSize',12)
