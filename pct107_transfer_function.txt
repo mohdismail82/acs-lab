@@ -1,0 +1,25 @@
+%This is a script for computing the transfer function of PCT107 Multivariable Plant
+clc
+close all
+clear all
+
+%Load data 
+load('pct107-heat-transfer-equi-data.mat')
+
+%Rename parameters to data
+t = out.tout;
+hot_water_pump = out.data.signals.values(:,1);
+shell_inlet = out.data.signals.values(:,2);
+tube_outlet = out.data.signals.values(:,3);
+
+%Plotting
+figure
+plot(t,hot_water_pump,'LineWidth',2)
+ylim([-0.1 1.1])
+
+figure
+plot(t,shell_inlet,'r-','LineWidth',2); hold on
+plot(t,tube_outlet,'b-','LineWidth',2); hold off
+
+figure
+plot(t,tube_outlet,'b-','LineWidth',2);
